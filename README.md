@@ -11,6 +11,7 @@ Aimed to provide an on-go, flexible toolset, HapPypi is under construction and c
   * `pip`
   * `gevent`
   * `requests`
+  * `bs4`
 
 ## Usage
 HapPypi uses `happy.py` as cli entry. Usages are listed below.
@@ -30,7 +31,7 @@ optional arguments:
 Currently, `happy` would only allow **ONE** file like `requirement.txt`. The versions(such as `==x.x.x`, `>=x.x.x`, etc.) in each line are automatically ignored.
 
 ## Future Features
-* **partially downloads** packages, given specified requirements.
+* **partially downloads** limited versions of packages, given specified requirements.
 * **visualization** from command line window / tkinter window.
     
     A global monitoring map(which user block to represent all versions of a package) would be generated in a specified window and updated regularly.
