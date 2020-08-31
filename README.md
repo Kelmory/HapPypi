@@ -17,14 +17,18 @@ Aimed to provide an on-go, flexible toolset, HapPypi is under construction and c
 HapPypi uses `happy.py` as cli entry. Usages are listed below.
 
 ```
-usage: happy.py [-h] [-d DIR] PIP_LIST
+usage: happy.py [-h] [-d DIR] [-i INDEX_URL] [-R] PIP_LIST
 
 positional arguments:
-  PIP_LIST           the pip-freeze format file for packages to be included
+  PIP_LIST              the pip-freeze format file for packages to be included
 
 optional arguments:
-  -h, --help         show this help message and exit
-  -d DIR, --dir DIR  the directory for saving packages
+  -h, --help            show this help message and exit
+  -d DIR, --dir DIR     the directory for saving packages
+  -i INDEX_URL, --index-url INDEX_URL
+                        optional url for acquiring packages from
+  -R, --recursive       download packages in dependency trees recursively
+
 ```
 
 ### NOTE

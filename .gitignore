@@ -1,3 +1,5 @@
 packages/**
 .vscode/**
 venv/
+simple_index.html
+test.txt

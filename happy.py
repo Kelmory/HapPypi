@@ -7,18 +7,55 @@ from urllib.parse import urljoin
 import gevent
 from gevent.monkey import patch_all
 
-# patch_all()
+patch_all()
 
 import requests
 
 import logging
 from bs4 import BeautifulSoup
+import json
 
 
 config = {
     'PYPI_SRC': 'https://pypi.tuna.tsinghua.edu.cn/simple',
-    'PACKAGE_ROOT': os.path.join(os.path.dirname(__file__), 'packages')
+    'PACKAGE_ROOT': os.path.join(os.path.dirname(__file__), 'packages'),
+    'PYPI_JSON_API': 'https://pypi.org/pypi/{}/json'
 }
+
+logger = logging.Logger('happypi', logging.INFO)
+
+
+class RequirementParser(object):
+    def __init__(self, initial_packages: list):
+        super().__init__()
+        
+        if not isinstance(initial_packages, (list, tuple)):
+            raise TypeError('Initial Packages should be a list or tuple')
+        self.to_visit = set(initial_packages)
+        self.visited = set()
+        self.req_api_base = config['PYPI_JSON_API']
+
+    def get_requirements(self, packages):
+        while self.to_visit:
+            greenlets = [gevent.spawn(self._get_requirement, package) for package in self.to_visit]
+            self.visited.update(self.to_visit)
+            self.to_visit.clear()
+            gevent.joinall(greenlets)
+            print(len(self.visited), self.visited)
+        return self.visited     
+
+    def _get_requirement(self, package):
+        try:
+            response = requests.get(self.req_api_base.format(package))
+            requirements = json.loads(response.content)['info']['requires_dist']
+        except:
+            return None
+
+        if requirements and isinstance(requirements, list):
+            requirements = {i.replace(';', ' ').split()[0] for i in requirements}
+            requirements = set(filter(lambda x: x not in self.visited, requirements))
+            self.to_visit.update(requirements)
+        return None
 
 def make_dir(path):
     path = os.path.abspath(path)
@@ -26,10 +63,10 @@ def make_dir(path):
         if not os.path.exists(path):
             os.mkdir(path)
         elif not os.path.isdir(path):
-            logging.log(logging.ERROR)
+            logger.error(f'{path} is not a dir' )
             return -1
     except Exception as e:
-        logging.fatal(f'Cannot create dir: {path}')
+        logger.fatal(f'Cannot create dir: {path}')
         return -1
     else:
         return 0
@@ -39,16 +76,16 @@ def download_package(package, dist_url, name):
     try:
         response = requests.get(dist_url)
     except Exception:
-        logging.error(f'File: failed to download {name}')
+        logger.error(f'File: failed to download {name}')
         return -1
     else:
         try:
             with open(os.path.join(config['PACKAGE_ROOT'], package, name), 'wb+') as f:
                 f.write(response.content)
         except Exception:
-            logging.error(f'File: failed to save {name}.')
+            logger.error(f'File: failed to save {name}.')
         else:
-            logging.info(f'File: saved {package}/{name}')
+            logger.info(f'File: saved {package}/{name}')
         return 0
 
 
@@ -61,7 +98,7 @@ def download_package_dists(package):
     try:
         package_dir_response = requests.get(url)
     except:
-        logging.error(f'Package: failed to get list of {package}')
+        logger.error(f'Package: failed to get list of {package}')
         return -1
 
     soup = BeautifulSoup(package_dir_response.content, 'lxml')
@@ -80,6 +117,7 @@ def get_package_name(package_line):
     info = re.split('([\w_-]+)(([<>=]=)([\d\.]+\d+)(,([<>=]=)([\d\.]+\d+))?)?', package_line)
     return info[1]
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("PIP_LIST", help="the pip-freeze format file for packages to be included")
@@ -92,7 +130,7 @@ if __name__ == "__main__":
         with open(args.PIP_LIST, 'r+') as f:
             packages = f.readlines()
     except:
-        logging.log(logging.FATAL, f'Failed to load requirement file {args.PIP_LIST}')
+        logger.fatal(f'Failed to load requirement file {args.PIP_LIST}')
         sys.exit(-1)
 
     packages = tuple(map(get_package_name, packages))    
@@ -105,22 +143,17 @@ if __name__ == "__main__":
 
     if args.index_url:
         if not args.index_url.endswith('/simple') and not args.index_url.endswith('/simple/'):
-            logging.error(f'URL {args.index_url} has an incorrect route, using {config["PYPI_SRC"]}')
+            logger.error(f'URL {args.index_url} has an incorrect route, using {config["PYPI_SRC"]}')
         else:
             config['PYPI_SRC'] = args.index_url
 
     if args.recursive:
-        logging.info('Acquiring packages in dependency tree...')
-        cmd = 'python -m pipdeptree -w silence -f -p {}'.format(','.join(packages))
+        logger.info('Acquiring packages in dependency tree...')
         try:
-            with os.popen(cmd) as f:
-                lines = f.readlines()
-        except:
-            logging.error('Failed to get recursive packages')
-            y = input('Continue to get packages?[y/n]')
-            if y not in ['y', 'Y']:
-                sys.exit(0)
-        else:
-            packages = tuple(map(get_package_name, lines))
+            packages_ = RequirementParser(packages).get_requirements(packages)
+            packages = packages_
+            print(packages)
+        except TypeError as te:
+            logger.error(str(te))
 
-    download_packages(packages)
+    # download_packages(packages)
