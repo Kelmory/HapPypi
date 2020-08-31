@@ -156,4 +156,4 @@ if __name__ == "__main__":
         except TypeError as te:
             logger.error(str(te))
 
-    # download_packages(packages)
+    download_packages(packages)
