@@ -3,3 +3,5 @@ packages/**
 venv/
 simple_index.html
 test.txt
+*.txt
+*.pyc
