@@ -17,7 +17,9 @@ Aimed to provide an on-go, flexible toolset, HapPypi is under construction and c
 HapPypi uses `happy.py` as cli entry. Usages are listed below.
 
 ```
-usage: happy.py [-h] [-d DIR] [-i INDEX_URL] [-R] PIP_LIST
+usage: happy.py [-h] [-d DIR] [-i INDEX_URL] [-R] [-w WORKING_PACKAGES]
+                [-t TIME_DELAY] [-p PACKAGES] [-v]
+                PIP_LIST
 
 positional arguments:
   PIP_LIST              the pip-freeze format file for packages to be included
@@ -28,11 +30,22 @@ optional arguments:
   -i INDEX_URL, --index-url INDEX_URL
                         optional url for acquiring packages from
   -R, --recursive       download packages in dependency trees recursively
+  -w WORKING_PACKAGES, --working-packages WORKING_PACKAGES
+                        the maximum package number to download simultaneously
+  -t TIME_DELAY, --time-delay TIME_DELAY
+                        the maximum random time delay to download each package
+  -p PACKAGES, --packages PACKAGES
+                        check packages appeared only in this argument, comma-
+                        separated string. if used, dumps output into
+                        `PIP_LIST`.
+  -v, --verbose         make logger more active, e.g. activate error-logging
+                        of a package download failure
 
 ```
 
 ### NOTE
 Currently, `happy` would only allow **ONE** file like `requirement.txt`. The versions(such as `==x.x.x`, `>=x.x.x`, etc.) in each line are automatically ignored.
+
 
 ## Future Features
 * **partially downloads** limited versions of packages, given specified requirements.

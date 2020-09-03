@@ -70,7 +70,9 @@ class PackageDownloader(object):
         """
         try:
             self._random_sleep()
-            response = requests.get(dist_url)
+        
+            with gevent.Timeout(120, TimeoutError) as timeout:
+                response = requests.get(dist_url)
         except Exception:
             logger.error(f'File: failed to download {name}')
             return -1
@@ -156,7 +158,7 @@ if __name__ == "__main__":
     parser.add_argument('-t', '--time-delay', type=float, default=2.0,
                         help="the maximum random time delay to download each package")
     parser.add_argument('-p', '--packages', type=str,
-                        help="check packages appeared only in this argument, comma-separated string. if used, ignores `PIP_LIST`.")
+                        help="check packages appeared only in this argument, comma-separated string. if used, dumps output into `PIP_LIST`.")
     parser.add_argument('-v', '--verbose', action='store_false',
                         help="make logger more active, e.g. activate error-logging of a package download failure")
     args = parser.parse_args()
@@ -193,7 +195,9 @@ if __name__ == "__main__":
         try:
             packages_ = RequirementParser(packages).get_requirements(packages)
             packages = packages_
+            with open(args.PIP_LIST, 'w+') as f:
+                f.write('\n'.join(packages))
         except TypeError as te:
             logger.error(str(te))
-
-    downloader.download_packages(packages)
+    else:
+        downloader.download_packages(packages)
