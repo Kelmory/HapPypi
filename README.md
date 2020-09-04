@@ -8,10 +8,10 @@ Aimed to provide an on-go, flexible toolset, HapPypi is under construction and c
 ## Requirements(Development Environment)
 * Python: 3.6+
 * Packages: 
-  * `pip`
   * `gevent`
   * `requests`
   * `bs4`
+  * `lxml`(for parser in `bs4`)
 
 ## Usage
 HapPypi uses `happy.py` as cli entry. Usages are listed below.

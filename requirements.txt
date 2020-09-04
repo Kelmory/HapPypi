@@ -1,3 +1,4 @@
 requests
 gevent
 bs4
+lxml

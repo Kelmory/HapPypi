@@ -15,6 +15,7 @@ import json
 import argparse
 import itertools
 from math import ceil
+from gevent.queue import Queue
 
 
 class RequirementParser(object):
@@ -58,6 +59,7 @@ class PackageDownloader(object):
     def __init__(self, time_delay, maximum_downloads):
         self.time_delay = time_delay
         self.maximum_downloads = maximum_downloads
+        self.max_per_package = int(120 / self.maximum_downloads)
 
     def _random_sleep(self, ratio=1.0):
         if ratio == 0 or self.time_delay == 0:
@@ -73,6 +75,7 @@ class PackageDownloader(object):
         
             with gevent.Timeout(120, TimeoutError) as timeout:
                 response = requests.get(dist_url)
+
         except Exception:
             logger.error(f'File: failed to download {name}')
             return -1
@@ -120,7 +123,11 @@ class PackageDownloader(object):
         jobs = [gevent.spawn(self.download_package, package, dist_url, name)
                 for (dist_url, name) in package_dists]
 
-        li = gevent.joinall(jobs)
+        li = []
+        batch = ceil(total / self.max_per_package)
+        for i in range(batch):
+            li.extend(gevent.joinall(jobs[i * self.max_per_package : (i + 1) * self.max_per_package]))
+
         failed = -sum([l.value for l in li])
         finished = total - failed
         # TODO: change output to be logger
