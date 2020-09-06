@@ -16,6 +16,7 @@ import argparse
 import itertools
 from math import ceil
 from gevent.queue import Queue
+from version import Version
 
 
 class RequirementParser(object):
@@ -28,7 +29,7 @@ class RequirementParser(object):
         self.visited = set()
         self.req_api_base = config['PYPI_JSON_API']
 
-    def get_requirements(self, packages):
+    def get_requirements(self):
         while self.to_visit:
             greenlets = [gevent.spawn(self._get_requirement, package)
                          for package in self.to_visit]
@@ -56,10 +57,11 @@ class RequirementParser(object):
 
 
 class PackageDownloader(object):
-    def __init__(self, time_delay, maximum_downloads):
+    def __init__(self, time_delay, maximum_downloads, latest_versions=None):
         self.time_delay = time_delay
         self.maximum_downloads = maximum_downloads
         self.max_per_package = int(120 / self.maximum_downloads)
+        self.latest_versions = latest_versions
 
     def _random_sleep(self, ratio=1.0):
         if ratio == 0 or self.time_delay == 0:
@@ -94,6 +96,26 @@ class PackageDownloader(object):
                 logger.info(f'File: saved {package}/{name}')
             return 0
 
+    def clip_versions(self, soup):
+        packages = soup.findAll('a')
+
+        if self.latest_versions > 0:
+            versions, ver_list = set(), []
+            for x in packages:
+                search = re.search('\d+(\.\d+)+[-\.]', x.text)
+                if search:
+                    version = Version(search.group()[:-1])
+                    versions.add(version)
+                    ver_list.append(version)
+                else:
+                    ver_list.append(None)
+            download_versions = sorted(versions)[-self.latest_versions:]
+            packages = [i[0] for i in list(filter(lambda x: x[1] in download_versions, (x for x in zip(packages, ver_list))))]
+
+        package_dists = tuple(map(lambda x: (urljoin(config['PYPI_SRC'], x.attrs['href']), x.text), packages))
+
+        return package_dists
+
     def download_package_dists(self, package):
         """
         Downloads all redistributable versions of a package.
@@ -117,9 +139,11 @@ class PackageDownloader(object):
                 return -1
 
         soup = BeautifulSoup(package_dir_response.content, 'lxml')
-        package_dists = tuple(map(lambda x: (urljoin(config['PYPI_SRC'], x.attrs['href']), x.text),
-                                  soup.findAll('a')))
+        package_dists = self.clip_versions(soup)
         total = len(package_dists)
+
+        print(f'[Downloading] {package:>20s}, total: {(total):4d}')
+        
         jobs = [gevent.spawn(self.download_package, package, dist_url, name)
                 for (dist_url, name) in package_dists]
 
@@ -132,14 +156,14 @@ class PackageDownloader(object):
         finished = total - failed
         # TODO: change output to be logger
         print(
-            f'Downloaded package: {package}, total: {(total):3d}, finished: {finished:3d}, failed: {failed:3d}')
+            f'[Downloaded]  {package:>20s}, total: {(total):4d}, finished: {finished:4d}, failed: {failed:4d}')
         return 0
 
     def download_packages(self, packages):
         res = []
         batches = ceil(len(packages) / self.maximum_downloads)
         for i in range(batches):
-            batch = packages[i: i + self.maximum_downloads]
+            batch = packages[i * self.maximum_downloads: (i + 1) * self.maximum_downloads]
 
             # TODO: change output to be logger
             print(f'Downloading batch {i}: {batch}')
@@ -165,12 +189,10 @@ if __name__ == "__main__":
     parser.add_argument('-t', '--time-delay', type=float, default=2.0,
                         help="the maximum random time delay to download each package")
     parser.add_argument('-p', '--packages', type=str,
-                        help="check packages appeared only in this argument, comma-separated string. if used, dumps output into `PIP_LIST`.")
-    parser.add_argument('-v', '--verbose', action='store_false',
-                        help="make logger more active, e.g. activate error-logging of a package download failure")
+                        help="check packages appeared only in this argument, comma-separated string. if used, dumps output into `PIP_LIST`")
+    parser.add_argument('-l', '--latest-versions', default=-1, type=int,
+                        help="download only the latest N versions, if N is given by this option")
     args = parser.parse_args()
-
-    downloader = PackageDownloader(args.time_delay, args.working_packages)
 
     if args.packages:
         packages = args.packages.split(',')
@@ -200,11 +222,12 @@ if __name__ == "__main__":
     if args.recursive:
         logger.info('Acquiring packages in dependency tree...')
         try:
-            packages_ = RequirementParser(packages).get_requirements(packages)
+            packages_ = RequirementParser(packages).get_requirements()
             packages = packages_
             with open(args.PIP_LIST, 'w+') as f:
                 f.write('\n'.join(packages))
         except TypeError as te:
             logger.error(str(te))
     else:
+        downloader = PackageDownloader(args.time_delay, args.working_packages, args.latest_versions)
         downloader.download_packages(packages)

@@ -5,3 +5,4 @@ simple_index.html
 test.txt
 *.txt
 *.pyc
+*.ipynb
