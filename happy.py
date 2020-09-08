@@ -1,11 +1,6 @@
 from gevent.monkey import patch_all
 patch_all()
 
-from utils import config, get_package_name, logger, make_dir
-from bs4 import BeautifulSoup
-import requests
-import gevent
-from urllib.parse import urljoin
 import time
 import sys
 import re
@@ -15,8 +10,15 @@ import json
 import argparse
 import itertools
 from math import ceil
-from gevent.queue import Queue
+import zipfile
+
+from bs4 import BeautifulSoup
+import requests
+import gevent
+from urllib.parse import urljoin
+
 from version import Version
+from utils import config, get_package_name, logger, make_dir
 
 
 class RequirementParser(object):
@@ -178,8 +180,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("PIP_LIST", default="requirement.txt",
                         help="the pip-freeze format file for packages to be included")
-    parser.add_argument(
-        '-d', '--dir', help="the directory for saving packages")
+    parser.add_argument('-d', '--dir', help="the directory for saving packages")
     parser.add_argument('-i', '--index-url',
                         help="optional url for acquiring packages from")
     parser.add_argument('-R', '--recursive', action="store_true",
@@ -192,6 +193,8 @@ if __name__ == "__main__":
                         help="check packages appeared only in this argument, comma-separated string. if used, dumps output into `PIP_LIST`")
     parser.add_argument('-l', '--latest-versions', default=-1, type=int,
                         help="download only the latest N versions, if N is given by this option")
+    parser.add_argument('-z', '--zip-packages', action='store_true', default=False,
+                        help='zip all packages into a .zip file, name following -d options or default')
     args = parser.parse_args()
 
     if args.packages:
@@ -220,7 +223,7 @@ if __name__ == "__main__":
             config['PYPI_SRC'] = args.index_url
 
     if args.recursive:
-        logger.info('Acquiring packages in dependency tree...')
+        print('Acquiring packages in dependency tree...')
         try:
             packages_ = RequirementParser(packages).get_requirements()
             packages = packages_
@@ -231,3 +234,13 @@ if __name__ == "__main__":
     else:
         downloader = PackageDownloader(args.time_delay, args.working_packages, args.latest_versions)
         downloader.download_packages(packages)
+
+    if args.zip_packages:
+        try:
+            with zipfile.ZipFile('{}.zip'.format(os.path.basename(config['PACKAGE_ROOT'])), mode='w') as zf:
+                for dirpath, dirnames, filenames in os.walk(config['PACKAGE_ROOT']):
+                    for filename in filenames:
+                        zf.write(os.path.join(dirpath, filename), 
+                                os.path.join(os.path.basename(dirpath), filename))
+        except OSError:
+            print('OS Error occured when zipping packages, check permissions please')
