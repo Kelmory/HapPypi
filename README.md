@@ -18,7 +18,7 @@ HapPypi uses `happy.py` as cli entry. Usages are listed below.
 
 ```
 usage: happy.py [-h] [-d DIR] [-i INDEX_URL] [-R] [-w WORKING_PACKAGES]
-                [-t TIME_DELAY] [-p PACKAGES] [-l LATEST_VERSIONS]
+                [-t TIME_DELAY] [-p PACKAGES] [-l LATEST_VERSIONS] [-z]
                 PIP_LIST
 
 positional arguments:
@@ -41,6 +41,8 @@ optional arguments:
   -l LATEST_VERSIONS, --latest-versions LATEST_VERSIONS
                         download only the latest N versions, if N is given by
                         this option
+  -z, --zip-packages    zip all packages into a .zip file, name following -d
+                        options or default
 
 ```
 
@@ -55,7 +57,7 @@ Currently, `happy` would only allow **ONE** file like `requirement.txt`. The ver
 ## Future Features
 * **visualization** from command line window / tkinter window.
     
-    A global monitoring map(which user block to represent all versions of a package) would be generated in a specified window and updated regularly.
+    A global monitoring map(which uses block to represent all versions of a package) would be generated in a specified window and updated regularly.
 
 * **compress** downloaded files into a file(->zip / ->tar->gzip).
 * generate a set of scripts which could be used for running **a small [pypiserver](https://pypi.org/project/pypiserver/)**.
