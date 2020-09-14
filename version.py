@@ -25,14 +25,22 @@ class Version(object):
 
     def __gt__(self, other):
         for a, b in zip_longest(self.version, other.version, fillvalue=''):
-            if a > b:
-                return True
+            try:
+                if int(a) > int(b):
+                    return True
+            except:
+                if a > b:
+                    return True
         return False
 
     def __lt__(self, other):
         for a, b in zip_longest(self.version, other.version, fillvalue=''):
-            if a < b:
-                return True
+            try:
+                if int(a) < int(b):
+                    return True
+            except:
+                if a < b:
+                    return True
         return False
 
     def __ne__(self, other):
